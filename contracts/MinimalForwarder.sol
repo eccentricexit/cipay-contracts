@@ -16,13 +16,13 @@ contract MinimalForwarder is EIP712 {
     struct ForwardRequest {
         address from;
         address to;
+        uint256 value;
         uint256 gas;
         uint256 nonce;
-        uint256 chainId;
         bytes data;
     }
 
-    bytes32 public immutable TYPEHASH = keccak256("ForwardRequest(address from,address to,uint256 gas,uint256 nonce,uint256 chainId, bytes data)");
+    bytes32 public immutable TYPEHASH = keccak256("ForwardRequest(address from,address to,uint256 value,uint256 gas,uint256 nonce,bytes data)");
 
     mapping(address => uint256) public nonces;
     mapping(address => bool) public whitelisted;
@@ -31,35 +31,28 @@ contract MinimalForwarder is EIP712 {
     event CallExecuted(bool success, bytes returndata);
     event WhitelistUpdated(address _address, bool _whitelisted);
 
-    constructor() EIP712("MinimalForwarder", "1.0.0") {
-        governor = msg.sender;
-    }
+    constructor() EIP712("MinimalForwarder", "0.0.1") {}
 
     function verify(ForwardRequest calldata req, bytes calldata signature) public view returns (bool) {
         address signer = hashTypedDataV4(keccak256(abi.encode(
             TYPEHASH,
             req.from,
             req.to,
+            req.value,
             req.gas,
             req.nonce,
-            req.chainId,
             keccak256(req.data)
         ))).recover(signature);
         return nonces[req.from] == req.nonce && signer == req.from;
     }
 
-    function execute(ForwardRequest calldata req, bytes calldata signature) external {
-        require(verify(req, signature), "Signature does not match request.");
+    function execute(ForwardRequest calldata req, bytes calldata signature) public payable {
+        require(verify(req, signature), "MinimalForwarder: signature does not match request");
         require(whitelisted[req.to], "Destination address not whitelisted.");
-        uint chainId;
-        assembly {
-            chainId := chainid()
-        }
-        require(req.chainId == chainId, "Tx signed for naother chain.");
         nonces[req.from] = req.nonce + 1;
 
         // solhint-disable-next-line avoid-low-level-calls
-        (bool success, bytes memory returndata) = req.to.call{gas: req.gas}(abi.encodePacked(req.data, req.from));
+        (bool success, bytes memory returndata) = req.to.call{gas: req.gas, value: req.value}(abi.encodePacked(req.data, req.from));
         // Validate that the relayer has sent enough gas for the call.
         // See https://ronan.eth.link/blog/ethereum-gas-dangers/
         assert(gasleft() > req.gas / 63);

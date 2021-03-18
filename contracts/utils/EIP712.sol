@@ -22,7 +22,7 @@ import "./ECDSA.sol";
  * NOTE: This contract implements the version of the encoding known as "v4", as implemented by the JSON RPC method
  * https://docs.metamask.io/guide/signing-data.html[`eth_signTypedDataV4` in MetaMask].
  *
- * Available since v3.4._
+ * _Available since v3.4._
  */
 abstract contract EIP712 {
     /* solhint-disable var-name-mixedcase */
