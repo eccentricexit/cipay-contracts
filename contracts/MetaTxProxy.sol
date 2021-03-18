@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Adapted from from OpenZeppelin's.
+// Adapted from from OpenZeppelin's MinimalForwarder.
 
 pragma solidity >0.6.0 <0.8.0;
 pragma abicoder v2;

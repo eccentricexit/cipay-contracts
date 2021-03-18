@@ -6,6 +6,7 @@
   "scripts": {
     "clean": "rimraf ./cache && rimraf ./artifacts",
     "compile": "yarn clean && hardhat compile",
+    "deploy": "yarn compile && hardhat run scripts/MetaTxProxy.deploy.ts --network optimism",
     "test": "yarn clean && hardhat test"
   },
   "devDependencies": {
@@ -17,7 +18,7 @@
     "chai": "^4.2.0",
     "ethereum-waffle": "3.2.1",
     "ethers": "5.0.24",
-    "hardhat": "2.0.7",
+    "hardhat": "^2.1.1",
     "mocha": "^8.2.1",
     "rimraf": "^3.0.2",
     "ts-node": "^9.1.1",
@@ -28,6 +29,7 @@
     "yarn": "1.22.10"
   },
   "dependencies": {
-    "@eth-optimism/plugins": "0.0.16"
+    "@eth-optimism/plugins": "^0.0.20",
+    "dotenv-safe": "^8.2.0"
   }
 }
