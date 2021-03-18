@@ -1,5 +1,6 @@
 import { l2ethers as ethers } from 'hardhat'
 import { Contract } from 'ethers'
+import { expect } from 'chai';
 
 const EIP712Domain = [
   { name: 'name', type: 'string' },
@@ -24,8 +25,8 @@ function getMetaTxTypeData(chainId, verifyingContract) {
       ForwardRequest,
     },
     domain: {
-      name: 'MinimalForwarder',
-      version: '0.0.1',
+      name: 'MetaTxProxy',
+      version: '1.0.0',
       chainId,
       verifyingContract,
     },
@@ -33,17 +34,17 @@ function getMetaTxTypeData(chainId, verifyingContract) {
   }
 };
 
-async function buildRequest(MinimalForwarder, input) {
-  const nonce = await MinimalForwarder.nonces(input.from).then(nonce => nonce.toString());
+async function buildRequest(MetaTxProxy, input) {
+  const nonce = await MetaTxProxy.nonces(input.from).then(nonce => nonce.toString());
   return { value: 0, gas: 1e6, nonce, ...input };
 }
 
-async function buildTypedData(MinimalForwarder, request) {
-  // const chainId = await MinimalForwarder.provider.getNetwork().then(n => n.chainId);
+async function buildTypedData(MetaTxProxy, request) {
+  // const chainId = await MetaTxProxy.provider.getNetwork().then(n => n.chainId);
   // For some reason the chain id in the EVM is still the outdated 420 and differs
   // from the value returned by the provider so we hardcode it instead of querying it.
   const chainId = 420
-  const typeData = getMetaTxTypeData(chainId, MinimalForwarder.address);
+  const typeData = getMetaTxTypeData(chainId, MetaTxProxy.address);
   return { ...typeData, message: request };
 }
 
@@ -58,39 +59,45 @@ async function signTypedData(provider, from, toSign) {
   return await provider.send(method, [from, argData]);
 }
 
-const signer = ethers.provider.getSigner()
-
-describe('Optimistic MinimalForwarder', () => {
+describe('Optimistic MetaTxProxy', () => {
   const name = 'ETH'
   const initialSupply = 10000000
+  const jsonRpcSigner = ethers.provider.getSigner()
 
   let ERC20: Contract
-  let MinimalForwarder: Contract
+  let MetaTxProxy: Contract
   beforeEach(async () => {
     ERC20 = await (await ethers.getContractFactory('ERC20'))
-      .connect(signer)
+      .connect(jsonRpcSigner)
       .deploy(initialSupply, name)
 
-    MinimalForwarder = await (await ethers.getContractFactory('MinimalForwarder'))
-      .connect(signer)
+    MetaTxProxy = await (await ethers.getContractFactory('MetaTxProxy'))
+      .connect(jsonRpcSigner)
       .deploy()
   })
 
   describe('transferFrom', () => {
-    it('should succeed when the signer has enough balance and the sender has a large enough allowance', async () => {
+    it('should succeed when the sender has enough balance and the sender has a large enough allowance', async () => {
       const amount = 2500000
+      await MetaTxProxy.setWhitelisted(ERC20.address, true)
+      await ERC20.approve(await MetaTxProxy.address, amount)
+      const [, receiver] = await ethers.getSigners()
+      const receiverAddress = await receiver.getAddress()
 
-      await ERC20.connect(signer).approve(await MinimalForwarder.address, amount)
-      const from = await signer.getAddress();
-      const to = ERC20.address;
-      const data = ERC20.interface.encodeFunctionData('transferFrom', [from, to, amount])
+      const balanceBefore = Number(await ERC20.balanceOf(receiverAddress))
 
-      const request = await buildRequest(MinimalForwarder, { to, from, data });
-      const toSign = await buildTypedData(MinimalForwarder, request);
-      const signature = await signTypedData(signer.provider, from, toSign)
+      const from = await jsonRpcSigner.getAddress();
+      const data = ERC20.interface.encodeFunctionData('transferFrom', [from, receiverAddress, amount])
+      const request = await buildRequest(MetaTxProxy, { to: ERC20.address, from, data });
+      const toSign = await buildTypedData(MetaTxProxy, request);
+      const signature = await signTypedData(jsonRpcSigner.provider, from, toSign)
 
-      await MinimalForwarder.verify(request, signature)
+      expect(await MetaTxProxy.verify(request, signature), 'signature validation failed').to.be.true
 
+      await MetaTxProxy.execute(request, signature)
+      const balanceAfter = Number(await ERC20.balanceOf(receiverAddress))
+
+      expect(balanceAfter, 'receiver should have received tokens').to.be.greaterThan(balanceBefore)
     })
   })
 })

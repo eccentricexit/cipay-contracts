@@ -10,7 +10,7 @@ import "./utils/EIP712.sol";
 /*
  * @dev Simple minimal meta transaction relay.
  */
-contract MinimalForwarder is EIP712 {
+contract MetaTxProxy is EIP712 {
     using ECDSA for bytes32;
 
     struct ForwardRequest {
@@ -31,7 +31,9 @@ contract MinimalForwarder is EIP712 {
     event CallExecuted(bool success, bytes returndata);
     event WhitelistUpdated(address _address, bool _whitelisted);
 
-    constructor() EIP712("MinimalForwarder", "0.0.1") {}
+    constructor() EIP712("MetaTxProxy", "1.0.0") {
+      governor = msg.sender;
+    }
 
     function verify(ForwardRequest calldata req, bytes calldata signature) public view returns (bool) {
         address signer = hashTypedDataV4(keccak256(abi.encode(
