@@ -27,12 +27,14 @@ contract MetaTxProxy is EIP712 {
     mapping(address => uint256) public nonces;
     mapping(address => bool) public whitelisted;
     address public governor;
+    address public relayer;
 
     event CallExecuted(bool success, bytes returndata);
     event WhitelistUpdated(address _address, bool _whitelisted);
 
     constructor() EIP712("MetaTxProxy", "1.0.0") {
       governor = msg.sender;
+      relayer = msg.sender;
     }
 
     function verify(ForwardRequest calldata req, bytes calldata signature) public view returns (bool) {
@@ -49,6 +51,7 @@ contract MetaTxProxy is EIP712 {
     }
 
     function execute(ForwardRequest calldata req, bytes calldata signature) public payable {
+        require(msg.sender == relayer, "Only the relayer can relay this message");
         require(verify(req, signature), "MinimalForwarder: signature does not match request");
         require(whitelisted[req.to], "Destination address not whitelisted.");
         nonces[req.from] = req.nonce + 1;
@@ -67,5 +70,15 @@ contract MetaTxProxy is EIP712 {
         whitelisted[_address] = _whitelisted;
 
         emit WhitelistUpdated(_address, _whitelisted);
+    }
+
+    function changeGovernor(address _newGovernor) external {
+        require(msg.sender == governor, "Only the govenor can call this.");
+        governor = _newGovernor;
+    }
+
+    function changeRelayer(address _newRelayer) external {
+        require(msg.sender == governor, "Only the govenor can call this.");
+        relayer = _newRelayer;
     }
 }
