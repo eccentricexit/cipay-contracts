@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rimraf ./cache && rimraf ./artifacts",
     "compile": "yarn clean && hardhat compile",
-    "deploy": "yarn compile && hardhat run scripts/MetaTxProxy.deploy.ts --network optimism",
+    "deploy": "yarn compile && hardhat run scripts/deploy.ts --network optimism",
     "test": "yarn clean && hardhat test"
   },
   "devDependencies": {
