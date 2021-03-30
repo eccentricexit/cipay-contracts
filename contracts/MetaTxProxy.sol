@@ -50,7 +50,7 @@ contract MetaTxProxy is EIP712 {
         return nonces[req.from] == req.nonce && signer == req.from;
     }
 
-    function execute(ForwardRequest calldata req, bytes calldata signature) public payable {
+    function execute(ForwardRequest calldata req, bytes calldata signature) public {
         require(msg.sender == relayer, "Only the relayer can relay this message");
         require(verify(req, signature), "MinimalForwarder: signature does not match request");
         require(whitelisted[req.to], "Destination address not whitelisted.");
