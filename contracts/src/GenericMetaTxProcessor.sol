@@ -24,7 +24,7 @@ contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
     bytes32 DOMAIN_SEPARATOR;
 
     bytes32 constant ERC20METATRANSACTION_TYPEHASH = keccak256(
-        "ERC20MetaTransaction(address from,address to,address tokenContract,uint256 amount,bytes data,uint256 batchId,uint256 batchNonce,uint256 expiry,uint256 txGas,uint256 baseGas,address relayer)"
+        "ERC20MetaTransaction(address from,address to,address tokenContract,uint256 amount,bytes data,uint256 batchId,uint256 batchNonce,uint256 expiry,uint256 txGas,uint256 baseGas)"
     );
     // //////////////////////////////////////////
 
@@ -38,6 +38,7 @@ contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
 
     // //////////////// STATE ///////////////////
     mapping(address => mapping(uint256 => uint256)) batches;
+    address public relayer;
     // //////////////////////////////////////////
 
     constructor() {
@@ -49,6 +50,7 @@ contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
                 address(this)
             )
         );
+        relayer = msg.sender;
     }
 
     struct Call {
@@ -66,17 +68,13 @@ contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
         uint256 expiry;
         uint256 txGas;
         uint256 baseGas;
-        address relayer;
     }
 
     function executeMetaTransaction(
         Call memory callData,
         CallParams memory callParams
     ) public {
-        require(
-            callParams.relayer == address(0) || callParams.relayer == msg.sender,
-            "wrong relayer"
-        );
+        require(msg.sender == relayer, "wrong relayer");
         require(block.timestamp < callParams.expiry, "expired");
         require(batches[callData.from][callParams.batchId] + 1 == callParams.batchNonce, "batchNonce out of order");
 
@@ -95,8 +93,7 @@ contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
                 callParams.batchNonce,
                 callParams.expiry,
                 callParams.txGas,
-                callParams.baseGas,
-                callParams.relayer
+                callParams.baseGas
               )
             )
         );
