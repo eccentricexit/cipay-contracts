@@ -10,6 +10,9 @@ dotenv.config()
 
 const config: HardhatUserConfig = {
   solidity: "0.7.6",
+  ovm: {
+    solcVersion: '0.7.6' // Your version goes here.
+  },
   networks: {
     optimism: {
       url: process.env.L2_NODE_URL || 'http://localhost:8545',
