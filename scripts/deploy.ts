@@ -6,6 +6,19 @@ async function main () {
   const signer = (await ethers.getSigners())[0]
   console.log('signer:', await signer.getAddress())
 
+  // Deploy dummy ERC20 token contract.
+  const ERC20 = await ethers.getContractFactory('TestToken', {
+    signer: (await ethers.getSigners())[0]
+  })
+
+  const name = 'TestToken'
+  const symbol = 'TST'
+  const initialSupply = (1000000000n*10n**18n).toString()
+  const erc20 = await ERC20.deploy(initialSupply, name, symbol)
+  await erc20.deployed()
+
+  console.log('ERC20 deployed to:', erc20.address)
+
   // Deploy meta tx proxy.
   const MetaTxProxy = await ethers.getContractFactory('GenericMetaTxProcessor', {
     signer: (await ethers.getSigners())[0]
@@ -13,6 +26,7 @@ async function main () {
 
   const metaTxProxy = await MetaTxProxy.deploy()
   await metaTxProxy.deployed()
+  await metaTxProxy.setTokenAccepted(erc20.address, true)
 
   console.log('MetaTxProxy deployed to:', metaTxProxy.address)
 }

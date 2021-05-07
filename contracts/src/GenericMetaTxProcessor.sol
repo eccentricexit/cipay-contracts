@@ -2,81 +2,63 @@ pragma solidity 0.7.6;
 pragma abicoder v2;
 
 import "./Libraries/BytesUtil.sol";
-import "./Libraries/AddressUtils.sol";
 import "./Libraries/SigUtil.sol";
-import "./Libraries/SafeMath.sol";
-import "./Interfaces/ERC1271.sol";
-import "./Interfaces/ERC1271Constants.sol";
-import "./Interfaces/ERC1654.sol";
-import "./Interfaces/ERC1654Constants.sol";
 import "./Interfaces/ERC20.sol";
 
-contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
-
-    // ////////////// LIBRARIES /////////////////
-    using SafeMath for uint256;
-    using AddressUtils for address;
-    // //////////////////////////////////////////
-
-    bytes32 constant EIP712DOMAIN_TYPEHASH = keccak256(
-        "EIP712Domain(string name,string version,address verifyingContract)"
-    );
-    bytes32 DOMAIN_SEPARATOR;
-
-    bytes32 constant ERC20METATRANSACTION_TYPEHASH = keccak256(
-        "ERC20MetaTransaction(address from,address to,address tokenContract,uint256 amount,bytes data,uint256 batchId,uint256 batchNonce,uint256 expiry,uint256 txGas,uint256 baseGas)"
-    );
-    // //////////////////////////////////////////
-
-    // //////////////// EVENTS //////////////////
-    event MetaTx(
-        address indexed from,
-        uint256 indexed batchId,
-        uint256 indexed batchNonce
-    );
-    // //////////////////////////////////////////
-
-    // //////////////// STATE ///////////////////
-    mapping(address => mapping(uint256 => uint256)) batches;
-    address public relayer;
-    // //////////////////////////////////////////
-
-    constructor() {
-        DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                EIP712DOMAIN_TYPEHASH,
-                keccak256("Generic Meta Transaction"),
-                keccak256("1"),
-                address(this)
-            )
-        );
-        relayer = msg.sender;
-    }
-
+contract GenericMetaTxProcessor {
     struct Call {
         address from;
         address to;
-        bytes data;
         bytes signature;
     }
 
     struct CallParams {
         address tokenContract;
         uint256 amount;
-        uint256 batchId;
-        uint256 batchNonce;
+        uint256 nonce;
         uint256 expiry;
-        uint256 txGas;
-        uint256 baseGas;
+    }
+
+    mapping(address => bool) public tokenAccepted;
+    mapping(address => uint256) public nonce;
+
+    address public relayer;
+    address public governor;
+
+    bytes32 public DOMAIN_SEPARATOR;
+    bytes32 public constant EIP712DOMAIN_TYPEHASH = keccak256(
+        "EIP712Domain(string name,string version,address verifyingContract)"
+    );
+    bytes32 public constant ERC20METATRANSACTION_TYPEHASH = keccak256(
+        "ERC20MetaTransaction(address from,address to,address tokenContract,uint256 amount,uint256 nonce,uint256 expiry)"
+    );
+
+    event MetaTx(address indexed _from, uint256 indexed _nonce);
+
+    constructor() {
+        DOMAIN_SEPARATOR = keccak256(
+            abi.encode(
+                EIP712DOMAIN_TYPEHASH,
+                keccak256("MetaTxRelay"),
+                keccak256("1"),
+                address(this)
+            )
+        );
+        relayer = msg.sender;
+        governor = msg.sender;
     }
 
     function executeMetaTransaction(
-        Call memory callData,
-        CallParams memory callParams
+        Call memory _callData,
+        CallParams memory _callParams
     ) public {
-        require(msg.sender == relayer, "wrong relayer");
-        require(block.timestamp < callParams.expiry, "expired");
-        require(batches[callData.from][callParams.batchId] + 1 == callParams.batchNonce, "batchNonce out of order");
+        require(tokenAccepted[_callParams.tokenContract], "Token not accepted");
+        require(msg.sender == relayer, "Only relayer.");
+        require(block.timestamp < _callParams.expiry, "Sig expired");
+        require(
+            nonce[_callData.from] + 1 == _callParams.nonce,
+            "Bad signature nonce"
+        );
 
         bytes memory dataToHash = abi.encodePacked(
             "\x19\x01",
@@ -84,30 +66,53 @@ contract GenericMetaTxProcessor is ERC1271Constants, ERC1654Constants {
             keccak256(
               abi.encode(
                 ERC20METATRANSACTION_TYPEHASH,
-                callData.from,
-                callData.to,
-                callParams.tokenContract,
-                callParams.amount,
-                keccak256(callData.data),
-                callParams.batchId,
-                callParams.batchNonce,
-                callParams.expiry,
-                callParams.txGas,
-                callParams.baseGas
+                _callData.from,
+                _callData.to,
+                _callParams.tokenContract,
+                _callParams.amount,
+                _callParams.nonce,
+                _callParams.expiry
               )
             )
         );
-        require(SigUtil.recover(keccak256(dataToHash), callData.signature) == callData.from, "signer != from");
-        batches[callData.from][callParams.batchId] = callParams.batchNonce;
-        ERC20 tokenContract = ERC20(callParams.tokenContract);
-        require(tokenContract.transferFrom(callData.from, callData.to, callParams.amount), "ERC20_TRANSFER_FAILED");
+        require(SigUtil.recover(keccak256(dataToHash), _callData.signature) == _callData.from, "signer != from");
+        nonce[_callData.from] = _callParams.nonce;
+        ERC20 tokenContract = ERC20(_callParams.tokenContract);
+        require(tokenContract.transferFrom(_callData.from, _callData.to, _callParams.amount), "ERC20_TRANSFER_FAILED");
 
-        emit MetaTx(callData.from, callParams.batchId, callParams.batchNonce);
+        emit MetaTx(_callData.from, _callParams.nonce);
     }
 
-    // // ////////////////////////////// VIEW /////////////////////////
-
-    function meta_nonce(address from, uint256 batchId) external view returns(uint256) {
-        return batches[from][batchId];
+    function setGovernor(address _governor) external {
+        require(msg.sender == governor, "Only governor");
+        governor = _governor;
     }
+
+    function setTokenAccepted(address _tokenAddr, bool _accepted) external  {
+        require(msg.sender == governor, "Only governor");
+        tokenAccepted[_tokenAddr] = _accepted;
+    }
+
+    function verify(
+        Call memory _callData,
+        CallParams memory _callParams
+    ) view external returns (address) {
+        bytes memory dataToHash = abi.encodePacked(
+            "\x19\x01",
+            DOMAIN_SEPARATOR,
+            keccak256(
+              abi.encode(
+                ERC20METATRANSACTION_TYPEHASH,
+                _callData.from,
+                _callData.to,
+                _callParams.tokenContract,
+                _callParams.amount,
+                _callParams.nonce,
+                _callParams.expiry
+              )
+            )
+        );
+        return SigUtil.recover(keccak256(dataToHash), _callData.signature);
+    }
+
 }
