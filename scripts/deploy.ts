@@ -26,7 +26,11 @@ async function main () {
 
   const metaTxProxy = await MetaTxProxy.deploy()
   await metaTxProxy.deployed()
+
+  const ETH_ADDRESS = '0x4200000000000000000000000000000000000006'
   await metaTxProxy.setTokenAccepted(erc20.address, true)
+  await metaTxProxy.setTokenAccepted(ETH_ADDRESS, true)
+
 
   console.log('MetaTxProxy deployed to:', metaTxProxy.address)
 }
