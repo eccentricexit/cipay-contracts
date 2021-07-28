@@ -3,7 +3,7 @@
 This repo holds the cold of the minimal meta transaction proxy contract.
 Modified from wighawag's awesome https://github.com/wighawag/singleton-1776-meta-transaction
 
-Deployments on Kovan L2:
-Signer: `0xdC8C1a8CB38F27C188a43CE0eBBC8e42e393D0d3`
-ERC20: `0x72E696fD56a1E2230a6Bc729eE81497aE9C796CA`
-MetaTxProxy deployed to: `0xfB167C545F79Fb85ddcBae360BF93ebdE7C5CF89`
+Deployments on Rinkeby Arbitrum:
+Signer: `0x6ae3B333e3ed128b26379580a239aeE155B10839`
+ERC20: `0x1FAE330677fA88818Af0AF5ca300D682D21a64Aa`
+MetaTxProxy deployed to: `0x4bddC12582a3198ae298199d447f86Cb913FF22E`

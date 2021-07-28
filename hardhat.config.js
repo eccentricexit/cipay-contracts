@@ -26,7 +26,15 @@ const rinkebyArbitrum = {
 }
 
 const configuration = {
-  solidity: "0.7.6",
+  solidity: {
+    version: "0.7.6",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   networks: {
     hardhat: {
       chainId: 1337
