@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.7.6;
 pragma abicoder v2;
 
-import "./Libraries/BytesUtil.sol";
-import "./Libraries/SigUtil.sol";
-import "./Interfaces/ERC20.sol";
+import "./libraries/BytesUtil.sol";
+import "./libraries/SigUtil.sol";
+import "./interfaces/ERC20.sol";
 
-contract GenericMetaTxProcessor {
+contract MetaTxRelay {
     struct Call {
         address from;
         address to;
@@ -26,21 +27,28 @@ contract GenericMetaTxProcessor {
     address public governor;
 
     bytes32 public DOMAIN_SEPARATOR;
-    bytes32 public constant EIP712DOMAIN_TYPEHASH = keccak256(
-        "EIP712Domain(string name,string version,address verifyingContract)"
-    );
-    bytes32 public constant ERC20METATRANSACTION_TYPEHASH = keccak256(
-        "ERC20MetaTransaction(address from,address to,address tokenContract,uint256 amount,uint256 nonce,uint256 expiry)"
-    );
+    bytes32 public constant EIP712DOMAIN_TYPEHASH =
+        keccak256(
+            abi.encodePacked(
+                "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+            )
+        );
+    bytes32 public constant ERC20METATRANSACTION_TYPEHASH =
+        keccak256(
+            abi.encodePacked(
+                "ERC20MetaTransaction(address from,address to,address tokenContract,uint256 amount,uint256 nonce,uint256 expiry)"
+            )
+        );
 
     event MetaTx(address indexed _from, uint256 indexed _nonce);
 
-    constructor() {
+    constructor(uint256 _chainId) {
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
                 EIP712DOMAIN_TYPEHASH,
                 keccak256("MetaTxRelay"),
-                keccak256("1"),
+                keccak256("1.0.0"),
+                _chainId,
                 address(this)
             )
         );
@@ -64,21 +72,32 @@ contract GenericMetaTxProcessor {
             "\x19\x01",
             DOMAIN_SEPARATOR,
             keccak256(
-              abi.encode(
-                ERC20METATRANSACTION_TYPEHASH,
-                _callData.from,
-                _callData.to,
-                _callParams.tokenContract,
-                _callParams.amount,
-                _callParams.nonce,
-                _callParams.expiry
-              )
+                abi.encode(
+                    ERC20METATRANSACTION_TYPEHASH,
+                    _callData.from,
+                    _callData.to,
+                    _callParams.tokenContract,
+                    _callParams.amount,
+                    _callParams.nonce,
+                    _callParams.expiry
+                )
             )
         );
-        require(SigUtil.recover(keccak256(dataToHash), _callData.signature) == _callData.from, "signer != from");
+        require(
+            SigUtil.recover(keccak256(dataToHash), _callData.signature) ==
+                _callData.from,
+            "signer != from"
+        );
         nonce[_callData.from] = _callParams.nonce;
         ERC20 tokenContract = ERC20(_callParams.tokenContract);
-        require(tokenContract.transferFrom(_callData.from, _callData.to, _callParams.amount), "ERC20_TRANSFER_FAILED");
+        require(
+            tokenContract.transferFrom(
+                _callData.from,
+                _callData.to,
+                _callParams.amount
+            ),
+            "ERC20_TRANSFER_FAILED"
+        );
 
         emit MetaTx(_callData.from, _callParams.nonce);
     }
@@ -88,31 +107,31 @@ contract GenericMetaTxProcessor {
         governor = _governor;
     }
 
-    function setTokenAccepted(address _tokenAddr, bool _accepted) external  {
+    function setTokenAccepted(address _tokenAddr, bool _accepted) external {
         require(msg.sender == governor, "Only governor");
         tokenAccepted[_tokenAddr] = _accepted;
     }
 
-    function verify(
-        Call memory _callData,
-        CallParams memory _callParams
-    ) view external returns (address) {
+    function recover(Call memory _callData, CallParams memory _callParams)
+        external
+        view
+        returns (address)
+    {
         bytes memory dataToHash = abi.encodePacked(
             "\x19\x01",
             DOMAIN_SEPARATOR,
             keccak256(
-              abi.encode(
-                ERC20METATRANSACTION_TYPEHASH,
-                _callData.from,
-                _callData.to,
-                _callParams.tokenContract,
-                _callParams.amount,
-                _callParams.nonce,
-                _callParams.expiry
-              )
+                abi.encode(
+                    ERC20METATRANSACTION_TYPEHASH,
+                    _callData.from,
+                    _callData.to,
+                    _callParams.tokenContract,
+                    _callParams.amount,
+                    _callParams.nonce,
+                    _callParams.expiry
+                )
             )
         );
         return SigUtil.recover(keccak256(dataToHash), _callData.signature);
     }
-
 }
