@@ -6,7 +6,8 @@
     "build": "env-cmd hardhat compile",
     "deploy": "env-cmd hardhat run scripts/deploy.js --network rinkebyArbitrum",
     "test": "hardhat test",
-    "lint": "secretlint \"**/*\""
+    "lint": "secretlint \"**/*\"",
+    "release": "standard-version"
   },
   "dependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
@@ -22,7 +23,8 @@
     "@secretlint/secretlint-rule-secp256k1-privatekey": "^3.3.0",
     "env-cmd": "^10.1.0",
     "husky": "^7.0.1",
-    "secretlint": "^3.3.0"
+    "secretlint": "^3.3.0",
+    "standard-version": "^9.3.1"
   },
   "husky": {
     "hooks": {
