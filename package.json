@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "env-cmd hardhat compile",
-    "deploy": "env-cmd hardhat run scripts/meta-tx-relay.js --network rinkebyArbitrum",
+    "deploy:arbitrum": "env-cmd hardhat run scripts/meta-tx-relay-arb-mainnet.js --network arbitrum",
     "test": "hardhat test",
     "lint": "secretlint \"**/*\"",
     "release": "standard-version"
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@secretlint/secretlint-rule-preset-recommend": "^3.3.0",
     "@secretlint/secretlint-rule-secp256k1-privatekey": "^3.3.0",
+    "arb-ts": "^1.0.2",
     "env-cmd": "^10.1.0",
     "husky": "^7.0.1",
     "secretlint": "^3.3.0",

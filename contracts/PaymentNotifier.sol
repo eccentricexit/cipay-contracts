@@ -4,7 +4,7 @@ pragma solidity 0.7.6;
 import "./interfaces/AggregatorV3Interface.sol";
 
 /**
- * Emits an event when receiving payments.
+ * Emits an event when receiving native payments.
  */
 contract PaymentNotifier {
     AggregatorV3Interface public priceFeed;
