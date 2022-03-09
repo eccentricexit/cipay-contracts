@@ -7,18 +7,19 @@ const hre = require("hardhat");
 
 async function main() {
   const l2Wallet = (await hre.ethers.getSigners())[0];
-  console.log("Your wallet address:", l2Wallet.address);
+  console.info("Your wallet address:", l2Wallet.address);
 
   // We get the contract to deploy
   const MetaTxRelay = await (
     await ethers.getContractFactory("MetaTxRelay")
   ).connect(l2Wallet);
   const chainId = await ethers.provider.getSigner().getChainId();
+  console.info("chainId", chainId);
 
-  console.log("Deploying Adoption contract to Arbitrum");
+  console.info("Deploying MetaTxRelay contract to Arbitrum");
   const metaTxRelay = await MetaTxRelay.deploy(chainId);
   await metaTxRelay.deployed();
-  console.log(`Adoption contract is deployed to ${metaTxRelay.address}`);
+  console.info(`MetaTxRelay contract is deployed to ${metaTxRelay.address}`);
 
   // DAI token on Arbitrum Mainnet
   const DAI_ADDRESS = "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1";

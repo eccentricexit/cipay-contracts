@@ -25,6 +25,7 @@ contract MetaTxRelay {
 
     address public relayer;
     address public governor;
+    address public wallet;
 
     bytes32 public DOMAIN_SEPARATOR;
     bytes32 public constant EIP712DOMAIN_TYPEHASH =
@@ -54,6 +55,7 @@ contract MetaTxRelay {
         );
         relayer = msg.sender;
         governor = msg.sender;
+        wallet = msg.sender;
     }
 
     function executeMetaTransaction(
@@ -67,6 +69,7 @@ contract MetaTxRelay {
             nonce[_callData.from] + 1 == _callParams.nonce,
             "Bad signature nonce"
         );
+        require(_callData.to == wallet, "Can only send to cipay");
 
         bytes memory dataToHash = abi.encodePacked(
             "\x19\x01",
@@ -110,6 +113,11 @@ contract MetaTxRelay {
     function setTokenAccepted(address _tokenAddr, bool _accepted) external {
         require(msg.sender == governor, "Only governor");
         tokenAccepted[_tokenAddr] = _accepted;
+    }
+
+    function setWallet(address _wallet) external {
+        require(msg.sender == governor, "Only governor");
+        wallet = _wallet;
     }
 
     function recover(Call memory _callData, CallParams memory _callParams)
